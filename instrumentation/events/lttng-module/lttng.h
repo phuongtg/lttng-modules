@@ -6,6 +6,8 @@
 
 #include <linux/tracepoint.h>
 
+#define LTTNG_UEVENT_SIZE 256
+
 TRACE_EVENT(lttng_metadata,
 
 	TP_PROTO(const char *str),
@@ -26,6 +28,23 @@ TRACE_EVENT(lttng_metadata,
 	),
 
 	TP_printk("")
+)
+
+TRACE_EVENT(lttng_uevent,
+
+	TP_PROTO(char *str),
+
+	TP_ARGS(str),
+
+	TP_STRUCT__entry(
+		__array_text(	char,	text,	LTTNG_UEVENT_SIZE	)
+	),
+
+	TP_fast_assign(
+		tp_memcpy(text, str, LTTNG_UEVENT_SIZE)
+	),
+
+	TP_printk("text=%s", __entry->text)
 )
 
 #endif /*  _TRACE_LTTNG_H */
