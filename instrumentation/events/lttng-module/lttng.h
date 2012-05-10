@@ -47,6 +47,40 @@ TRACE_EVENT(lttng_uevent,
 	TP_printk("text=%s", __entry->text)
 )
 
+TRACE_EVENT(lttng_uevent_cfu,
+
+	TP_PROTO(const char *str),
+
+	TP_ARGS(str),
+
+	TP_STRUCT__entry(
+		__string_from_user(	str,	str	)
+	),
+
+	TP_fast_assign(
+		tp_copy_string_from_user(str, str)
+	),
+
+	TP_printk()
+)
+
+TRACE_EVENT(lttng_uevent_memcpy,
+
+	TP_PROTO(const char *str, size_t len),
+
+	TP_ARGS(str, len),
+
+	TP_STRUCT__entry(
+		__string(	text,	str	)
+	),
+
+	TP_fast_assign(
+		tp_memcpy_from_user(text, str, len)
+	),
+
+	TP_printk("text=%s", __entry->text)
+)
+
 #endif /*  _TRACE_LTTNG_H */
 
 /* This part must be outside protection */
