@@ -8,7 +8,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; only
- * version 2.1 of the License.
+ * version 2 of the License.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -37,11 +37,12 @@
 #include "../instrumentation/events/lttng-module/lttng.h"
 
 DEFINE_TRACE(lttng_uevent);
+DEFINE_TRACE(lttng_uevent_cfu);
+DEFINE_TRACE(lttng_uevent_memcpy);
 
 #define LTTNG_UEVENT_FILE	"lttng_user_event"
-
-struct proc_dir_entry *lttng_root;
-static struct proc_dir_entry *write_file;
+#define LTTNG_UEVENT_FILE_CFU	"lttng_user_event_cfu"
+#define LTTNG_UEVENT_FILE_MEMCPY	"lttng_user_event_memcpy"
 
 /**
  * write_event - write a userspace string into the trace system
@@ -114,41 +115,99 @@ ssize_t write_event(struct file *file, const char __user *user_buf,
 	return written;
 }
 
+/* CFU stands for Copy From User */
+static
+ssize_t write_event_copy_from_user(struct file *file, const char __user *user_buf,
+		    size_t count, loff_t *fpos)
+{
+	/* How do we know how much data is written? Otherwise,
+	 * this function can't return the appropriate value.
+	 *
+	 * If the user string is not null-terminated,
+	 * then could it leak info beyong the string? : yes
+	 *
+	 * Assuming the userspace string is well formated
+	 * seems not appropriate.
+	 */
+	trace_lttng_uevent_cfu(user_buf);
+	return count;
+}
+
+static
+ssize_t write_event_memcpy(struct file *file, const char __user *user_buf,
+		    size_t count, loff_t *fpos)
+{
+	if (count >= LTTNG_UEVENT_SIZE)
+		count = LTTNG_UEVENT_SIZE - 1;
+
+	/*
+	 * still unable to enforce null terminated string
+	 * userspace won't be happy if we change their buffers in-place
+	 */
+	trace_lttng_uevent_memcpy(user_buf, count);
+	return count;
+}
+
 static const struct file_operations write_file_ops = {
 	.owner = THIS_MODULE,
 	.write = write_event
 };
 
+static const struct file_operations write_file_cfu_ops = {
+	.owner = THIS_MODULE,
+	.write = write_event_copy_from_user
+};
+
+static const struct file_operations write_file_memcpy_ops = {
+	.owner = THIS_MODULE,
+	.write = write_event_memcpy
+};
+
+static int init_proc_entry(char *name, const struct file_operations *fops)
+{
+	struct proc_dir_entry *write_file;
+
+	write_file = create_proc_entry(name, 0644, NULL);
+	if (!write_file) {
+		return -ENOENT;
+	}
+	write_file->proc_fops = fops;
+	write_file->mode = S_IFREG | S_IWUGO;
+	write_file->uid = 0;
+	write_file->gid = 0;
+	return 0;
+}
+
 static int __init lttng_user_event_init(void)
 {
 	int err = 0;
 
-	/* lttng is already a file with the current abi, not a directory */
-	/*
-	lttng_root = proc_mkdir("lttng", NULL);
-	if (lttng_root == NULL)
-		return -ENOMEM;
-	*/
-	write_file = create_proc_entry(LTTNG_UEVENT_FILE, 0644, lttng_root);
-	if (!write_file) {
-		err = -ENOENT;
-		goto err_procfs;
-	}
-	write_file->proc_fops = &write_file_ops;
-	write_file->mode = S_IFREG | S_IWUGO;
-	write_file->uid = 0;
-	write_file->gid = 0;
+	if ((err = init_proc_entry(LTTNG_UEVENT_FILE, &write_file_ops)) < 0)
+		goto err_1;
+	if ((err = init_proc_entry(LTTNG_UEVENT_FILE_CFU, &write_file_cfu_ops)) < 0)
+		goto err_2;
+	if ((err = init_proc_entry(LTTNG_UEVENT_FILE_MEMCPY, &write_file_memcpy_ops)) < 0)
+		goto err_3;
+
 	return err;
 
-err_procfs:
-	remove_proc_entry(LTTNG_UEVENT_FILE, lttng_root);
+ err_3:
+	remove_proc_entry(LTTNG_UEVENT_FILE_MEMCPY, NULL);
+ err_2:
+	remove_proc_entry(LTTNG_UEVENT_FILE_CFU, NULL);
+ err_1:
+	remove_proc_entry(LTTNG_UEVENT_FILE, NULL);
 	return err;
 }
 
 static void __exit lttng_user_event_exit(void)
 {
-	remove_proc_entry(LTTNG_UEVENT_FILE, lttng_root);
+	remove_proc_entry(LTTNG_UEVENT_FILE, NULL);
 	printk(KERN_INFO "/proc/%s removed\n", LTTNG_UEVENT_FILE);
+	remove_proc_entry(LTTNG_UEVENT_FILE_CFU, NULL);
+	printk(KERN_INFO "/proc/%s removed\n", LTTNG_UEVENT_FILE_CFU);
+	remove_proc_entry(LTTNG_UEVENT_FILE_MEMCPY, NULL);
+	printk(KERN_INFO "/proc/%s removed\n", LTTNG_UEVENT_FILE_MEMCPY);
 }
 
 module_init(lttng_user_event_init);
