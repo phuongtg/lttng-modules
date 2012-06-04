@@ -46,7 +46,7 @@ TRACE_EVENT(lttng_uevent,
 
 	TP_printk("text=%s", __entry->text)
 )
-
+/*
 TRACE_EVENT(lttng_uevent_cfu,
 
 	TP_PROTO(const char *str),
@@ -61,6 +61,14 @@ TRACE_EVENT(lttng_uevent_cfu,
 		tp_copy_string_from_user(str, str)
 	),
 
+	TP_printk()
+)*/
+
+TRACE_EVENT(lttng_uevent_cfu,
+	TP_PROTO(const char * str),
+	TP_ARGS(str),
+	TP_STRUCT__entry(__string_from_user(str, str)),
+	TP_fast_assign(tp_copy_string_from_user(str, str)),
 	TP_printk()
 )
 

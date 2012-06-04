@@ -115,6 +115,8 @@ ssize_t write_event(struct file *file, const char __user *user_buf,
 	return written;
 }
 
+#define SIZE 10
+#define MAX_LEN 256
 /* CFU stands for Copy From User */
 static
 ssize_t write_event_copy_from_user(struct file *file, const char __user *user_buf,
@@ -122,6 +124,7 @@ ssize_t write_event_copy_from_user(struct file *file, const char __user *user_bu
 {
 	/* How do we know how much data is written? Otherwise,
 	 * this function can't return the appropriate value.
+	 * Assumes it writes all data.
 	 *
 	 * If the user string is not null-terminated,
 	 * then could it leak info beyong the string? : yes
@@ -129,6 +132,19 @@ ssize_t write_event_copy_from_user(struct file *file, const char __user *user_bu
 	 * Assuming the userspace string is well formated
 	 * seems not appropriate.
 	 */
+	int i;
+	char buf[SIZE];
+	char out[MAX_LEN];
+	char *cur;
+
+	memset(buf, 0, SIZE);
+	copy_from_user(buf, user_buf, SIZE);
+	cur = out;
+	for (i=0; i<SIZE; i++) {
+		cur += sprintf(cur, "0x%X ", (int)buf[i]);
+	}
+	*cur = '\0';
+	printk("%s\n", out);
 	trace_lttng_uevent_cfu(user_buf);
 	return count;
 }
