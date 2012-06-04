@@ -556,6 +556,21 @@ __assign_##dest##_2:							\
 	__chan->ops->event_write_from_user(&__ctx, src, len);		\
 	goto __end_field_##dest;
 
+#undef tp_memcpy_dyn_from_user
+#define tp_memcpy_dyn_from_user(dest, src)					\
+__assign_##dest##_1:							\
+	{								\
+		u32 __tmpl = __dynamic_len[__dynamic_len_idx];		\
+		lib_ring_buffer_align_ctx(&__ctx, lttng_alignof(u32));	\
+		__chan->ops->event_write(&__ctx, &__tmpl, sizeof(u32));	\
+	}								\
+	goto __end_field_##dest##_1;					\
+__assign_##dest##_2:							\
+	lib_ring_buffer_align_ctx(&__ctx, lttng_alignof(__typemap.dest));	\
+	__chan->ops->event_write_from_user(&__ctx, src,				\
+		sizeof(__typemap.dest) * __get_dynamic_array_len(dest));\
+	goto __end_field_##dest##_2;
+
 /*
  * The string length including the final \0.
  */
