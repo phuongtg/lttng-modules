@@ -54,7 +54,7 @@
  * Required data structures to support lttng-probe-uevent
  */
 DEFINE_RWLOCK(uevent_rwlock);
-write_ops_t lttng_uevent_handler;
+static write_ops_t lttng_uevent_handler;
 
 /*
  * This is LTTng's own personal way to create a system call as an external
