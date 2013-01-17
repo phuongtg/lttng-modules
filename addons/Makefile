@@ -12,6 +12,9 @@ obj-m += lttng-addons.o
 lttng-addons-objs += lttng-net.o lttng-packet.o
 lttng-addons-defsyms = inet_family_ops
 
+obj-m += lttng-wakeup.o
+obj-m += lttng-probe-wakeup.o
+
 include $(src)/../defsyms.mk
 
 ldflags-y := -T $(src)/lttng-addons.defsyms
