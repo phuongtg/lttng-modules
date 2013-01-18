@@ -20,10 +20,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/kallsyms.h>
 #include <linux/module.h>
+#include <linux/percpu.h>
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
@@ -34,8 +36,12 @@
 
 DEFINE_TRACE(dump_stack_array);
 
+#define MAX_STACK_ENTRIES 10
 #define PROC_ENTRY_NAME "dump_stack"
 static struct proc_dir_entry *proc_entry;
+
+static struct stack_trace *stack_trace_percpu;
+static unsigned long **stack_trace_entries_percpu;
 
 static int fault_handler(struct kprobe *p, struct pt_regs *regs, int trapnr)
 {
@@ -60,17 +66,13 @@ static int trace_wakeup_hook_ret(struct kretprobe_instance *ri, struct pt_regs *
 	return 0;
 }
 
-#define MAX_STACK_ENTRIES 10
-
 int proc_dump_stack(char *buffer, char **buffer_location,
 	      off_t offset, int buffer_length, int *eof, void *data)
 {
+	/*
 	int i;
 	char str[KSYM_SYMBOL_LEN];
-	struct stack_trace trace;
-	trace.nr_entries = 0;
-	trace.skip = 0;
-	trace.max_entries = MAX_STACK_ENTRIES;
+
 	trace.entries = kmalloc(sizeof(unsigned long) * MAX_STACK_ENTRIES, GFP_KERNEL);
 	if (trace.entries == NULL)
 		return -ENOMEM;
@@ -83,6 +85,7 @@ int proc_dump_stack(char *buffer, char **buffer_location,
 	kfree(trace.entries);
 	//trace_dump_stack_array(addr);
 	dump_stack();
+	*/
 	return 0;
 }
 
@@ -95,9 +98,44 @@ static struct kretprobe sched_wakeup_kprobe = {
 	.maxactive = 32,
 };
 
+static int alloc_percpu_stack_trace(void)
+{
+	int cpu;
+    struct stack_trace *trace;
+    unsigned long **entries;
+    unsigned long *ptr;
+
+    trace = alloc_percpu(struct stack_trace);
+    if (!trace)
+    	goto err_warn;
+    entries = alloc_percpu(unsigned long *);
+    if (!entries)
+    	goto err_ent;
+
+    for_each_cpu(cpu, cpu_possible_mask) {
+    	ptr = kmalloc(sizeof(unsigned long) * MAX_STACK_ENTRIES, GFP_KERNEL);
+    	if (!ptr)
+    		goto err_percpu;
+    	per_cpu_ptr(entries, cpu) = ptr;
+    }
+    return 0;
+
+ err_percpu:
+    for_each_cpu(cpu, cpu_possible_mask) {
+    	ptr = get_cpu_ptr(entries, cpu);
+    	kfree(ptr);
+    }
+ err_ent:
+    free_percpu(trace);
+ err_warn:
+	WARN(1, "Could not allocate percpu stack_trace");
+	return -ENOMEM;
+}
+
 static int __init lttng_addons_wakeup_init(void)
 {
 	int ret;
+	unsigned int cpu;
 
 	ret = register_kretprobe(&sched_wakeup_kprobe);
 	if (ret < 0) {

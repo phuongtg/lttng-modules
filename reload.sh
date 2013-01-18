@@ -1,5 +1,7 @@
 #!/bin/sh
 
+sudo make KERNELDIR=../linux module_install
+
 sudo rmmod lttng-probe-addons
 sudo rmmod lttng-addons
 sudo rmmod lttng-wakeup
