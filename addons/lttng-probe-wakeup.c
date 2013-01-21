@@ -1,7 +1,7 @@
 /*
- * probes/lttng-probe-net.c
+ * probes/lttng-probe-wakeup.c
  *
- * Expose kernel tracer to user-space through /proc/lttng
+ * debug wakeup probe
  *
  * Copyright (C) 2009-2012 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  *
@@ -22,9 +22,6 @@
 
 #include <linux/module.h>
 
-/*
- * Create lttng_uevent tracepoint probes.
- */
 #define LTTNG_PACKAGE_BUILD
 #define CREATE_TRACE_POINTS
 #define TRACE_INCLUDE_PATH ../instrumentation/events/lttng-module

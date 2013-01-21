@@ -7,13 +7,20 @@ ifneq ($(CONFIG_TRACEPOINTS),)
 
 ccflags-y += -I$(PWD)/addons
 
+# HACK: symbol save_stack_trace_user is not exported. To resolve it, use
+# defsyms.mk macro, but there are two limitations. There must be objs
+# declaration and only one defsyms file is supported.
+
+obj-m += lttng-probe-wakeup.o
+obj-m += lttng-wakeup-mod.o
+#obj-m += lttng-wakeup.o
+lttng-wakeup-mod-objs += lttng-wakeup.o
+
 obj-m += lttng-probe-addons.o
 obj-m += lttng-addons.o
 lttng-addons-objs += lttng-net.o lttng-packet.o
 lttng-addons-defsyms = inet_family_ops
-
-obj-m += lttng-wakeup.o
-obj-m += lttng-probe-wakeup.o
+#lttng-addons-defsyms = inet_family_ops save_stack_trace_user
 
 include $(src)/../defsyms.mk
 
