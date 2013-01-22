@@ -19,7 +19,7 @@ lttng-wakeup-mod-objs += lttng-wakeup.o
 obj-m += lttng-probe-addons.o
 obj-m += lttng-addons.o
 lttng-addons-objs += lttng-net.o lttng-packet.o
-lttng-addons-defsyms = inet_family_ops
+lttng-addons-defsyms = inet_family_ops save_stack_trace_regs
 #lttng-addons-defsyms = inet_family_ops save_stack_trace_user
 
 include $(src)/../defsyms.mk

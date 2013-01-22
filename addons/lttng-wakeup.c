@@ -57,7 +57,7 @@ static void print_stack_trace_custom(struct stack_trace *trace)
 }
 
 
-static void record_stack_trace(int verbose)
+static void record_stack_trace(struct pt_regs *regs, int verbose)
 {
 	struct stack_trace trace;
 	unsigned long entries[STACK_MAX_ENTRIES];
@@ -68,7 +68,7 @@ static void record_stack_trace(int verbose)
 	trace.max_entries = STACK_MAX_ENTRIES;
 	trace.entries = entries;
 
-	save_stack_trace(&trace);
+	save_stack_trace_regs(regs, &trace);
 	trace_dump_stack_array(trace.entries, trace.nr_entries);
 	if (verbose && printk_ratelimit()) {
 		printk("record_stack_trace\n");
@@ -85,14 +85,14 @@ static int fault_handler(struct kprobe *p, struct pt_regs *regs, int trapnr)
 
 static int trace_wakeup_hook_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	record_stack_trace(false);
+	record_stack_trace(regs, false);
 	return 0;
 }
 
 static int proc_dump_stack(char *buffer, char **buffer_location,
 	      off_t offset, int buffer_length, int *eof, void *data)
 {
-	record_stack_trace(true);
+	record_stack_trace(NULL, true);
 	return 0;
 }
 
