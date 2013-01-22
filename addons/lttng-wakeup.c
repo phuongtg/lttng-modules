@@ -32,37 +32,13 @@
 #include "../lttng-abi.h"
 #include "../instrumentation/events/lttng-module/wakeup.h"
 
-DEFINE_TRACE(testing);
 DEFINE_TRACE(dump_stack_array);
 
 #define STACK_MAX_ENTRIES 10
 #define PROC_ENTRY_NAME "dump_stack"
 static struct proc_dir_entry *proc_entry;
 
-static int fault_handler(struct kprobe *p, struct pt_regs *regs, int trapnr)
-{
-	printk(KERN_WARNING "%s: fault %d occured in kprobe for %s\n",
-			THIS_MODULE->name, trapnr, p->symbol_name);
-	return 0;
-}
-
-static int trace_wakeup_hook_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	if (printk_ratelimit()) {
-		printk("trace_wakeup_hook_entry\n");
-	}
-	return 0;
-}
-
-static int trace_wakeup_hook_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	if (printk_ratelimit()) {
-		printk("trace_wakeup_hook_ret\n");
-	}
-	return 0;
-}
-
-static void my_print_stack_trace(struct stack_trace *trace)
+static void print_stack_trace_custom(struct stack_trace *trace)
 {
 	int i;
 	char str[KSYM_SYMBOL_LEN];
@@ -80,8 +56,8 @@ static void my_print_stack_trace(struct stack_trace *trace)
 	}
 }
 
-static int proc_dump_stack(char *buffer, char **buffer_location,
-	      off_t offset, int buffer_length, int *eof, void *data)
+
+static void record_stack_trace(int verbose)
 {
 	struct stack_trace trace;
 	unsigned long entries[STACK_MAX_ENTRIES];
@@ -93,9 +69,30 @@ static int proc_dump_stack(char *buffer, char **buffer_location,
 	trace.entries = entries;
 
 	save_stack_trace(&trace);
-	my_print_stack_trace(&trace);
 	trace_dump_stack_array(trace.entries, trace.nr_entries);
-	//trace_testing(trace.nr_entries);
+	if (verbose && printk_ratelimit()) {
+		printk("record_stack_trace\n");
+		print_stack_trace_custom(&trace);
+	}
+}
+
+static int fault_handler(struct kprobe *p, struct pt_regs *regs, int trapnr)
+{
+	printk(KERN_WARNING "%s: fault %d occured in kprobe for %s\n",
+			THIS_MODULE->name, trapnr, p->symbol_name);
+	return 0;
+}
+
+static int trace_wakeup_hook_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	record_stack_trace(false);
+	return 0;
+}
+
+static int proc_dump_stack(char *buffer, char **buffer_location,
+	      off_t offset, int buffer_length, int *eof, void *data)
+{
+	record_stack_trace(true);
 	return 0;
 }
 
@@ -103,7 +100,7 @@ static struct kretprobe sched_wakeup_kprobe = {
 	.kp.symbol_name = "ttwu_do_wakeup",
 	.kp.fault_handler = fault_handler,
 	.entry_handler = trace_wakeup_hook_entry,
-	.handler = trace_wakeup_hook_ret,
+	.handler = NULL,
 	.data_size = 0,
 	.maxactive = 32,
 };
@@ -112,7 +109,7 @@ static int __init lttng_addons_wakeup_init(void)
 {
 	int ret = 0;
 
-	//ret = register_kretprobe(&sched_wakeup_kprobe);
+	ret = register_kretprobe(&sched_wakeup_kprobe);
 	if (ret < 0) {
 		printk(KERN_INFO "Error loading kretprobe %d\n", ret);
 		goto error;

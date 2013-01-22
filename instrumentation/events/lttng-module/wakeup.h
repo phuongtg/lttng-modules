@@ -18,18 +18,6 @@ TRACE_EVENT(dump_stack_array,
 	TP_printk("") // FIXME: display the whole array
 )
 
-TRACE_EVENT(testing,
-	TP_PROTO(int num),
-	TP_ARGS(num),
-	TP_STRUCT__entry(
-		__field_hex(int, idx)
-	),
-	TP_fast_assign(
-		tp_assign(idx, num)
-	),
-	TP_printk("%p", __entry->idx)
-)
-
 #endif /* LTTNG_WAKEUP_H_ */
 
 /* This part must be outside protection */
