@@ -1851,10 +1851,16 @@ DEFINE_EVENT(ext4__map_blocks_enter, ext4_ind_map_blocks_enter,
 )
 
 DECLARE_EVENT_CLASS(ext4__map_blocks_exit,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+	TP_PROTO(struct inode *inode, struct ext4_map_blocks *map, int ret),
+
+	TP_ARGS(inode, map, ret),
+#else
 	TP_PROTO(struct inode *inode, ext4_lblk_t lblk,
 		 ext4_fsblk_t pblk, unsigned int len, int ret),
 
 	TP_ARGS(inode, lblk, pblk, len, ret),
+#endif
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
@@ -1862,37 +1868,67 @@ DECLARE_EVENT_CLASS(ext4__map_blocks_exit,
 		__field(	ext4_fsblk_t,	pblk		)
 		__field(	ext4_lblk_t,	lblk		)
 		__field(	unsigned int,	len		)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+		__field(	unsigned int,	flags		)
+#endif
 		__field(	int,		ret		)
 	),
 
 	TP_fast_assign(
 		tp_assign(dev, inode->i_sb->s_dev)
 		tp_assign(ino, inode->i_ino)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+		tp_assign(pblk, map->m_pblk)
+		tp_assign(lblk, map->m_lblk)
+		tp_assign(len, map->m_len)
+		tp_assign(flags, map->m_flags)
+#else
 		tp_assign(pblk, pblk)
 		tp_assign(lblk, lblk)
 		tp_assign(len, len)
+#endif
 		tp_assign(ret, ret)
 	),
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+	TP_printk("dev %d,%d ino %lu lblk %u pblk %llu len %u flags %x ret %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->ino,
+		  __entry->lblk, __entry->pblk,
+		  __entry->len, __entry->flags, __entry->ret)
+#else
 	TP_printk("dev %d,%d ino %lu lblk %u pblk %llu len %u ret %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  __entry->lblk, __entry->pblk,
 		  __entry->len, __entry->ret)
+#endif
 )
 
 DEFINE_EVENT(ext4__map_blocks_exit, ext4_ext_map_blocks_exit,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+	TP_PROTO(struct inode *inode, struct ext4_map_blocks *map, int ret),
+
+	TP_ARGS(inode, struct ext4_map_blocks *map, ret)
+#else
 	TP_PROTO(struct inode *inode, ext4_lblk_t lblk,
 		 ext4_fsblk_t pblk, unsigned len, int ret),
 
 	TP_ARGS(inode, lblk, pblk, len, ret)
+#endif
 )
 
 DEFINE_EVENT(ext4__map_blocks_exit, ext4_ind_map_blocks_exit,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+	TP_PROTO(struct inode *inode, struct ext4_map_blocks *map, int ret),
+
+	TP_ARGS(inode, struct ext4_map_blocks *map, ret)
+#else
 	TP_PROTO(struct inode *inode, ext4_lblk_t lblk,
 		 ext4_fsblk_t pblk, unsigned len, int ret),
 
 	TP_ARGS(inode, lblk, pblk, len, ret)
+#endif
 )
 
 TRACE_EVENT(ext4_ext_load_extent,
