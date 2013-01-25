@@ -607,7 +607,11 @@ DEFINE_EVENT(ext4__page_op, ext4_releasepage,
 	TP_ARGS(page)
 )
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+DECLARE_EVENT_CLASS(ext4_invalidatepage_op,
+#else
 TRACE_EVENT(ext4_invalidatepage,
+#endif
 	TP_PROTO(struct page *page, unsigned long offset),
 
 	TP_ARGS(page, offset),
@@ -632,7 +636,21 @@ TRACE_EVENT(ext4_invalidatepage,
 		  (unsigned long) __entry->ino,
 		  (unsigned long) __entry->index, __entry->offset)
 )
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+DEFINE_EVENT(ext4_invalidatepage_op, ext4_invalidatepage,
+	TP_PROTO(struct page *page, unsigned long offset),
+
+	TP_ARGS(page, offset)
+)
+
+DEFINE_EVENT(ext4_invalidatepage_op, ext4_journalled_invalidatepage,
+	TP_PROTO(struct page *page, unsigned long offset),
+
+	TP_ARGS(page, offset)
+)
 #endif
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39) */
 
 TRACE_EVENT(ext4_discard_blocks,
 	TP_PROTO(struct super_block *sb, unsigned long long blk,
