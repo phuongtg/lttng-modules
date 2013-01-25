@@ -2016,10 +2016,17 @@ DEFINE_EVENT(ext4__trim, ext4_trim_all_free,
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 TRACE_EVENT(ext4_ext_handle_uninitialized_extents,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+	TP_PROTO(struct inode *inode, struct ext4_map_blocks *map, int flags,
+		 unsigned int allocated, ext4_fsblk_t newblock),
+
+	TP_ARGS(inode, map, flags, allocated, newblock),
+#else
 	TP_PROTO(struct inode *inode, struct ext4_map_blocks *map,
 		 unsigned int allocated, ext4_fsblk_t newblock),
 
 	TP_ARGS(inode, map, allocated, newblock),
+#endif
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
@@ -2035,7 +2042,11 @@ TRACE_EVENT(ext4_ext_handle_uninitialized_extents,
 	TP_fast_assign(
 		tp_assign(dev, inode->i_sb->s_dev)
 		tp_assign(ino, inode->i_ino)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+		tp_assign(flags, flags)
+#else
 		tp_assign(flags, map->m_flags)
+#endif
 		tp_assign(lblk, map->m_lblk)
 		tp_assign(pblk, map->m_pblk)
 		tp_assign(len, map->m_len)
@@ -2043,7 +2054,7 @@ TRACE_EVENT(ext4_ext_handle_uninitialized_extents,
 		tp_assign(newblk, newblock)
 	),
 
-	TP_printk("dev %d,%d ino %lu m_lblk %u m_pblk %llu m_len %u flags %d"
+	TP_printk("dev %d,%d ino %lu m_lblk %u m_pblk %llu m_len %u flags %x "
 		  "allocated %d newblock %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
