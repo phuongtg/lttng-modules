@@ -31,6 +31,11 @@ struct extent_status;
 #define TP_MODE_T	umode_t
 #endif
 
+/* Header changes in 4a092d7379 requires private utility function */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+#include "../mainline/fs/ext4/ext4_extents.h"
+#endif
+
 TRACE_EVENT(ext4_free_inode,
 	TP_PROTO(struct inode *inode),
 
