@@ -11,10 +11,10 @@ ccflags-y += -I$(PWD)/addons
 # defsyms.mk macro, but there are two limitations. There must be objs
 # declaration and only one defsyms file is supported.
 
-obj-m += lttng-probe-wakeup.o
-obj-m += lttng-wakeup-mod.o
-#obj-m += lttng-wakeup.o
-lttng-wakeup-mod-objs += lttng-wakeup.o
+obj-m += lttng-probe-backtrace.o
+obj-m += lttng-backtrace-mod.o
+#obj-m += lttng-backtrace.o
+lttng-backtrace-mod-objs += lttng-backtrace.o
 
 obj-m += lttng-probe-addons.o
 obj-m += lttng-addons.o

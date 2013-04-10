@@ -26,7 +26,7 @@
 #define CREATE_TRACE_POINTS
 #define TRACE_INCLUDE_PATH ../instrumentation/events/lttng-module
 
-#include "../instrumentation/events/lttng-module/wakeup.h"
+#include "../instrumentation/events/lttng-module/backtrace.h"
 
 MODULE_LICENSE("GPL and additional rights");
 MODULE_AUTHOR("Mathieu Desnoyers <mathieu.desnoyers@efficios.com>");

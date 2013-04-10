@@ -1,7 +1,7 @@
 /*
- * addons/lttng-wakeup.c
+ * addons/lttng-backtrace.c
  *
- * Record more information on wakeup
+ * Record backtrace
  *
  * Copyright (C) 2012 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  *
@@ -28,14 +28,17 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 
-#include "lttng-wakeup.h"
+#include "lttng-backtrace.h"
 #include "../lttng-abi.h"
-#include "../instrumentation/events/lttng-module/wakeup.h"
+#include "../instrumentation/events/lttng-module/backtrace.h"
 
-DEFINE_TRACE(dump_stack_array);
+DEFINE_TRACE(backtrace_array);
 
+//#define FUNC_NAME "ttwu_do_wakeup"
+#define FUNC_NAME "blk_update_request"
+//#define FUNC_NAME "trace_block_rq_complete"
 #define STACK_MAX_ENTRIES 10
-#define PROC_ENTRY_NAME "dump_stack"
+#define PROC_ENTRY_NAME "backtrace"
 static struct proc_dir_entry *proc_entry;
 
 static void print_stack_trace_custom(struct stack_trace *trace)
@@ -69,9 +72,9 @@ static void record_stack_trace(struct pt_regs *regs, int verbose)
 	trace.entries = entries;
 
 	save_stack_trace_regs(regs, &trace);
-	trace_dump_stack_array(trace.entries, trace.nr_entries);
+	trace_backtrace_array(trace.entries, trace.nr_entries);
 	if (verbose && printk_ratelimit()) {
-		printk("record_stack_trace\n");
+		printk("backtrace\n");
 		print_stack_trace_custom(&trace);
 	}
 }
@@ -83,7 +86,7 @@ static int fault_handler(struct kprobe *p, struct pt_regs *regs, int trapnr)
 	return 0;
 }
 
-static int trace_wakeup_hook_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
+static int trace_stack_hook_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	record_stack_trace(regs, false);
 	return 0;
@@ -96,20 +99,20 @@ static int proc_dump_stack(char *buffer, char **buffer_location,
 	return 0;
 }
 
-static struct kretprobe sched_wakeup_kprobe = {
-	.kp.symbol_name = "ttwu_do_wakeup",
+static struct kretprobe backtrace_kprobe = {
+	.kp.symbol_name = FUNC_NAME,
 	.kp.fault_handler = fault_handler,
-	.entry_handler = trace_wakeup_hook_entry,
+	.entry_handler = trace_stack_hook_entry,
 	.handler = NULL,
 	.data_size = 0,
 	.maxactive = 32,
 };
 
-static int __init lttng_addons_wakeup_init(void)
+static int __init lttng_addons_backtrace_init(void)
 {
 	int ret = 0;
 
-	ret = register_kretprobe(&sched_wakeup_kprobe);
+	ret = register_kretprobe(&backtrace_kprobe);
 	if (ret < 0) {
 		printk(KERN_INFO "Error loading kretprobe %d\n", ret);
 		goto error;
@@ -126,26 +129,25 @@ static int __init lttng_addons_wakeup_init(void)
 	proc_entry->uid = 0;
 	proc_entry->gid = 0;
 
-	printk("lttng_addons_wakeup loaded\n");
+	printk("lttng_addons_backtrace loaded\n");
 	return 0;
 
 error:
-	unregister_kretprobe(&sched_wakeup_kprobe);
+	unregister_kretprobe(&backtrace_kprobe);
 	return ret;
 }
 
-static void __exit lttng_addons_wakeup_exit(void)
+static void __exit lttng_addons_backtrace_exit(void)
 {
-	//unregister_kretprobe(&sched_wakeup_kprobe);
 	remove_proc_entry(PROC_ENTRY_NAME, NULL);
-
-	printk("lttng_addons_wakeup unloaded\n");
+	unregister_kretprobe(&backtrace_kprobe);
+	printk("lttng_addons_backtrace unloaded\n");
 	return;
 }
 
-module_init(lttng_addons_wakeup_init);
-module_exit(lttng_addons_wakeup_exit);
+module_init(lttng_addons_backtrace_init);
+module_exit(lttng_addons_backtrace_exit);
 
 MODULE_LICENSE("GPL and additional rights");
 MODULE_AUTHOR("Francis Giraldeau <francis.giraldeau@gmail.com>");
-MODULE_DESCRIPTION("LTTng wakeup tracer");
+MODULE_DESCRIPTION("LTTng backtracetrace");
