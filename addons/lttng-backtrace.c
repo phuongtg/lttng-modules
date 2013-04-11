@@ -34,10 +34,10 @@
 
 DEFINE_TRACE(backtrace_array);
 
-//#define FUNC_NAME "ttwu_do_wakeup"
-#define FUNC_NAME "blk_update_request"
+#define FUNC_NAME1 "ttwu_do_wakeup"
+#define FUNC_NAME2 "blk_update_request"
 //#define FUNC_NAME "trace_block_rq_complete"
-#define STACK_MAX_ENTRIES 10
+#define STACK_MAX_ENTRIES 20
 #define PROC_ENTRY_NAME "backtrace"
 static struct proc_dir_entry *proc_entry;
 
@@ -99,8 +99,17 @@ static int proc_dump_stack(char *buffer, char **buffer_location,
 	return 0;
 }
 
-static struct kretprobe backtrace_kprobe = {
-	.kp.symbol_name = FUNC_NAME,
+static struct kretprobe backtrace1_kprobe = {
+	.kp.symbol_name = FUNC_NAME1,
+	.kp.fault_handler = fault_handler,
+	.entry_handler = trace_stack_hook_entry,
+	.handler = NULL,
+	.data_size = 0,
+	.maxactive = 32,
+};
+
+static struct kretprobe backtrace2_kprobe = {
+	.kp.symbol_name = FUNC_NAME2,
 	.kp.fault_handler = fault_handler,
 	.entry_handler = trace_stack_hook_entry,
 	.handler = NULL,
@@ -112,7 +121,13 @@ static int __init lttng_addons_backtrace_init(void)
 {
 	int ret = 0;
 
-	ret = register_kretprobe(&backtrace_kprobe);
+	ret = register_kretprobe(&backtrace1_kprobe);
+	if (ret < 0) {
+		printk(KERN_INFO "Error loading kretprobe %d\n", ret);
+		goto error;
+	}
+
+	ret = register_kretprobe(&backtrace2_kprobe);
 	if (ret < 0) {
 		printk(KERN_INFO "Error loading kretprobe %d\n", ret);
 		goto error;
@@ -133,14 +148,16 @@ static int __init lttng_addons_backtrace_init(void)
 	return 0;
 
 error:
-	unregister_kretprobe(&backtrace_kprobe);
+	unregister_kretprobe(&backtrace1_kprobe);
+	unregister_kretprobe(&backtrace2_kprobe);
 	return ret;
 }
 
 static void __exit lttng_addons_backtrace_exit(void)
 {
 	remove_proc_entry(PROC_ENTRY_NAME, NULL);
-	unregister_kretprobe(&backtrace_kprobe);
+	unregister_kretprobe(&backtrace1_kprobe);
+	unregister_kretprobe(&backtrace2_kprobe);
 	printk("lttng_addons_backtrace unloaded\n");
 	return;
 }
